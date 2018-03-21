@@ -5,15 +5,27 @@ output: html_document
 
 ```{r, echo = FALSE, comment=FALSE, message=FALSE, fig.align='center'}
 
-library(readr)
+#Pacotes necessários
 
-quest <- read_csv("C:/Users/Sueli/Desktop/Question+írioEstat+¡sticaB+ísica2.csv")
+library(readr)
+library(splitstackshape, quietly = TRUE)
+library(lattice)
+library(plotrix)
+library(scales)
+
+#Lendo os dados
+
+path <- file.choose() #Função para escolher o arquivo de forma interativa
+
+quest <- read_csv(path)
 
 quest <- data.frame(quest[,-1], stringsAsFactors = FALSE)
 
 names(quest) <- c("grau", "inic_p", "setor", "conc_grad", "loc_grad", "prog_grad", "inic_m","con_mest", "loc_mest", "art", "bols", "estat_grad", "estat_p", "soft", "met", "import", "trab", "sexo", "irm", "origem", "mora", "transp", "hab", "height", "weight", "pet", "instr", "nasc", "rede")
 
 quest$grau <- tolower(iconv(quest$grau, to ='ASCII//TRANSLIT', from = "UTF-8"))
+
+#Arrumando as colunas
 
 quest$inic_p <- as.integer(quest$inic_p)
 quest$conc_grad <- as.integer(quest$conc_grad)
@@ -25,18 +37,18 @@ quest$irm <- as.integer(quest$irm)
 quest$height <- as.numeric(quest$height)
 quest$weight <- as.numeric(quest$weight)
 
+#Trabalhando os dados
+
 for(i in 1:dim(quest)[1]){
   if(!quest$grau[i] == "doutorado" & !quest$grau[i] == "mestrado"){
     quest$grau[i] <- "outro"
   }
 }
 
-inic_p <- data.frame(ano = sort(unique(quest$inic_p[which(quest$inic_p >= 1994)])), n = numeric(length(unique(quest$inic_p[which(quest$inic_p >= 1994)]))))
-for(i in 1:dim(inic_p)[1]){inic_p$n[i] <- sum(quest$inic_p == inic_p$ano[i])}
+inic_p <- as.matrix(table(quest$inic_p[which(quest$inic_p >= 1994)], quest$grau[which(quest$inic_p >= 1994)]))
 
-conc_grad <- data.frame(ano = sort(unique(quest$conc_grad[which(quest$conc_grad >= 1950)])), n = numeric(length(unique(quest$conc_grad[which(quest$conc_grad >= 1950)]))))
-for(i in 1:dim(conc_grad)[1]){conc_grad$n[i] <- sum(quest$conc_grad == conc_grad$ano[i])}
-conc_grad <- conc_grad[which(conc_grad$ano < 2030),]
+conc_grad <- table(quest$conc_grad[which(quest$conc_grad < 2030 & quest$conc_grad > 1918)],
+                   quest$grau[which(quest$conc_grad < 2030 & quest$conc_grad > 1918)])
 
 quest$loc_grad <- tolower(iconv(quest$loc_grad, to ='ASCII//TRANSLIT', from = "UTF-8"))
 
@@ -47,8 +59,9 @@ quest$loc_mest <- tolower(iconv(quest$loc_mest, to ='ASCII//TRANSLIT', from = "U
 quest$loc_mest[which(!quest$loc_mest == "ufpr")] <- "outro"
 
 quest$bols <- tolower(iconv(quest$bols, to ='ASCII//TRANSLIT', from = "UTF-8"))
+quest$bols[which(!quest$bols == "capes" & !quest$bols == "cnpq" & !quest$bols == "nao" & !quest$bols == "projeto")] <- "outro"
 
-library(splitstackshape, quietly = TRUE)
+#Usando expressões regulares para padronizar as respotas de software
 
 quest$soft <- tolower(iconv(quest$soft, to = 'ASCII//TRANSLIT', from = "UTF-8"))
 quest$soft <- gsub(" e ", ";", quest$soft)
@@ -70,78 +83,108 @@ software <- software[which(!software == "")]
 
 quest$transp <- tolower(iconv(quest$transp, to ='ASCII//TRANSLIT', from = "UTF-8"))
 
+quest$transp[which(!quest$transp == "carro/moto proprio" & !quest$transp == "transporte publico" & !quest$transp == "a pe ou bicicleta" & !quest$transp == "carona com amigos")] <- "outros"
+
+#Usando expressões regulares para padronizar as respotas de instrumentos musicais
+
 quest$instr <- tolower(iconv(quest$instr, to ='ASCII//TRANSLIT', from = "UTF-8"))
+quest$instr <- gsub("-", " ", quest$instr)
+quest$instr <- gsub(",", ";", quest$instr)
+quest$instr <- gsub(" e ", ";", quest$instr)
+quest$instr <- gsub("/", ";", quest$instr)
+
 instr <- cSplit(quest, "instr", sep = ";", direction = "long")$instr
 
 prog <- cSplit(quest, "prog_grad", sep = ";", direction = "long")$prog_grad
 
 social <- cSplit(quest, "rede", sep = ";", direction = "long")$rede
 
-library(lattice)
-library(plotrix)
-library(scales)
+#Proporção de mestrandos x doutorandos
 
-pie3D(table(quest$grau), col = c("red", "blue"), 
+pie3D(table(quest$grau), col = c("red", "blue", "green"), main = "Proporção de Mestrandos x Doutorandos",
       labels = percent(as.vector(prop.table(table(quest$grau)))), height = .07, start = 3*pi/4)
-title("Proporção de Mestrandos x Doutorandos")
-legend(-.8, 1, legend = c("Doutorado", "Mestrado"), fill = c("red", "blue"))
-
-par(mfrow = c(1,2))
+legend(-.8, 1, legend = c("Doutorado", "Mestrado", "Outro"), fill = c("red", "blue", "green"), cex = .8)
 
 mest <- quest[which(quest$grau == "mestrado"), c(2, 4)]
 dout <- quest[which(quest$grau == "doutorado"), c(2, 4, 7, 8)]
 
+#Deixei comentado ali em baixo caso você tenha preferência por deixar os números "fazendo sentido". Por causa do input errado de alguns dos alunos, a diferença
+#está disforme, nestes casos
 
-```
+mest$dif <- mest$inic_p - mest$conc_grad
+#mest <- mest[which(mest$dif >= 0),]
 
-<html>
-<body>
-<center>
-<font size="4">**Dispersão de ingressão**</font>
-</center>
-</body>
-</html>
+dout$dif1 <- dout$inic_m - dout$conc_grad
+#dout <- dout[which(dout$dif1 >= 0),]
+dout$dif2 <- dout$inic_p - dout$con_mest
+#dout <- dout[which(dout$dif2 >= 0),]
 
-```{r, echo = FALSE, comment=FALSE, message=FALSE, fig.align='center'}
-par(mfrow = c(1, 2))
-plot(mest$inic_p, mest$conc_grad, col = "blue", type = "p",
-     xlim = c(min(min(mest$inic_p), min(dout$inic_m)) - 2, max(max(mest$inic_p), max(dout$inic_m))) + 2,
-     ylim = c(min(min(mest$conc_grad), min(dout$conc_grad)) - 2, max(max(mest$conc_grad), max(dout$conc_grad))) + 2,
-     xlab = "Ano de ingresso no Mestrado", ylab = "Ano de conclusão da Graduação", pch = 16)
-points(dout$inic_m, dout$conc_grad, col = "red", pch = 19)
-legend("topleft", legend = c("Mestrado", "Doutorado"), pch = c(16, 19), col = c("blue", "red"))
-plot(dout$inic_p, dout$con_mest, col = "darkgreen", type = "p", xlab = "Ano de ingresso no Doutorado", 
-     ylab = "Ano de ingresso no Mestrado", pch = 16, ylim = c(2000, 2018))
+#Barplots trabalhando os anos de entrada/conclusão
 
-#x11()
+barplot(t(inic_p), col = c("blue", "red", "green"), main = "Ano de ingresso no programa", beside = TRUE)
+legend("topleft", fill = c("blue", "red", "green"), legend = c("Mestrado", "Doutorado", "Outro"))
 
-par(mfrow = c(1,1))
+barplot(t(conc_grad), col = c("blue", "red", "green"), main = "Ano de conclusão da graduação")
+legend("topleft", fill = c("blue", "red", "green"), legend = c("Mestrado", "Doutorado", "Outro"))
 
-barplot(table(quest$setor), col = rainbow(length(unique(quest$setor))), names.arg = FALSE, xlim = c(0, 10),
+barplot(table(mest$dif[-31]), main = "Tempo entre a conclusão da graduação\ne o ingresso no programa", col = "blue")
+
+barplot(table(dout$dif1), main = "Tempo entre a conclusão da graduação\ne o ingresso no mestrado", col = "red",
+        horiz = TRUE)
+
+barplot(table(dout$dif2[which(dout$dif2 > 0)]), horiz = TRUE,
+        main = "Tempo entre a conclusão do mestrado\ne o ingresso no programa", col = "green")
+
+#Barplot de setores
+
+x11()
+barplot(table(quest$setor), col = rainbow(length(unique(quest$setor))), names.arg = FALSE, 
         ylim = c(0, max(table(quest$setor) + 10)), main = "Setores")
-legend("topright", legend = sort(unique(quest$setor)), fill = rainbow(length(unique(quest$setor))), bty = "n")
+legend("topright", legend = sort(unique(quest$setor)), fill = rainbow(length(unique(quest$setor))), bty = "n",
+       cex = .7)
+text(x = as.vector(barplot(table(quest$setor), plot = FALSE)), y = as.vector(table(quest$setor)) + 2, 
+     labels = percent(as.vector(prop.table(table(quest$setor)))), cex = .8)
 
-#Região dedicada pra plotar o mapa
-#
-#
-#
-#
-####
-
+#Análise sobre onde cursou a graduação
 
 x11()
-pie3D(table(prog), col = c("darkgreen", "red", "blue"), explode = .1, 
-      labels = percent(as.vector(prop.table(table(prog)))), height = .07, start = 3*pi/4, main = "Bolsa graduação")
-legend(-.8, 1, legend = sort(unique(prog)), fill = c("darkgreen", "red", "blue"), bty = "n")
+pie3D(table(quest$loc_grad), col = c("red", "blue"), labels = percent(as.vector(prop.table(table(quest$loc_grad)))),
+      height = .07, start = 3*pi/4, main = "Onde cursou a graduação?")
+legend(-.8, 1, legend = c("Outro", "UFPR"), fill = c("red", "blue"), bty = "n")
 
-boxplot(quest$art, main = "Boxplot de artigos publicados", horizontal = TRUE)
-hist(quest$art, main = "Histograma de artigos publicados", col = "azure4", xlab = "Artigos publicados",
-     ylab = "Frequência")
+#Bolsas durante graduação
 
 x11()
-pie3D(table(quest$bols), col = heat.colors(length(unique(quest$bols))), explode = .1, main = "Bolsa Pós Graduação",
+pie3D(table(prog), col = c("green", "red", "blue"), 
+      labels = percent(as.vector(table(prog)/dim(quest)[1])), height = .07, start = 3*pi/4, 
+      main = "Bolsa graduação")
+legend(-.8, 1, legend = sort(unique(prog)), fill = c("green", "red", "blue"), bty = "n")
+
+#Sobre o mestrado
+
+x11()
+pie3D(table(quest$loc_mest), col = c("red", "blue"), labels = percent(as.vector(prop.table(table(quest$loc_mest)))),
+      height = .07, start = 3*pi/4, main = "Onde cursou o mestrado?")
+legend(-.8, 1, legend = c("Outro", "UFPR"), fill = c("red", "blue"), bty = "n")
+
+#Artigos publicados
+
+plot(table(quest$art), t = "h", xlab = "Artigos publicados", ylab = "Frequência", main = "Artigos publicados")
+
+grau_art <- as.matrix(table(quest$grau, quest$art))
+
+barplot(grau_art, col = c("blue", "red", "green"), main = "Artigos publicados por grau")
+legend("topright", fill = c("blue", "red", "green"), legend = c("Doutorado", "Mestrado", "Outro"), bty = "n")
+
+#Bolsa de pós
+
+x11()
+pie3D(table(quest$bols), col = rainbow(length(unique(quest$bols))), explode = .1, main = "Bolsa Pós Graduação",
       labels = percent(as.vector(prop.table(table(quest$bols)))), height = .07, start = 3*pi/4)
-legend(-.8, 1, legend = sort(unique(quest$bols)), fill = heat.colors(length(unique(quest$bols))), bty = "n")
+legend("top", legend = sort(unique(quest$bols)), fill = rainbow(length(unique(quest$bols))), bty = "n",
+       cex = .8)
+
+#Gráficos sobre o estudo de estatística durante a graduação ou pós, com alguns cruzamentos
 
 par(mfrow = c(1, 2))
 
@@ -149,19 +192,41 @@ pie3D(table(quest$estat_grad), col = c("red", "blue"), main = "Cursou Estatísti
       labels = percent(as.vector(prop.table(table(quest$estat_grad)))), height = .07, start = 3*pi/4)
 legend(-.8, 1, legend = c("Não", "Sim"), fill = c("red", "blue"))
 
-pie3D(table(quest$estat_p), col = c("darkgreen", "brown"), main = "Cursou Estatística\nna Pós Graduação?",
+pie3D(table(quest$estat_p), col = c("red", "blue"), main = "Cursou Estatística\nna Pós Graduação?",
       labels = percent(as.vector(prop.table(table(quest$estat_p)))), height = .07, start = 3*pi/4)
-legend(-.8, 1, legend = c("Não", "Sim"), fill = c("darkgreen", "brown"))
+legend(-.8, 1, legend = c("Não", "Sim"), fill = c("red", "blue"))
 
 par(mfrow = c(1,1))
 
-barplot(table(software), col = topo.colors(length(unique(software))), main = "Softwares Estatísticos")
+est_ano <- table(quest$estat_grad, quest$conc_grad)
+est_ano <- as.matrix(est_ano[,-c(1, 32)])
+
+barplot(est_ano, col = c("red", "blue"), main = "Ano de ingresso na graduação vs\ncursou ou não estatística")
+legend("topleft", legend = c("Não", "Sim"), fill = c("red", "blue"))
+
+est_set <- as.matrix(table(quest$estat_grad, quest$setor))
+
+barplot(est_set, col = c("red", "blue"), main = "Setor vs cursou ou não estatística", las = 2, cex.names = .5)
+legend("topright", legend = c("Não", "Sim"), fill = c("red", "blue"))
+
+par(mfrow = c(1,1))
+
+#Softwares
+
+barplot(sort(c((table(software)/dim(quest)[1])[which(table(software)/dim(quest)[1] >= .03)], 
+             sum(sort(prop.table(table(software))[which(prop.table(table(software)) < .03)])))),
+        names.arg = c("Graphpad", "SAS", "Excel", "Assistat", "Statistica", "SPSS", "R", "Não", "Outros"),
+        col = rainbow(9), main = "Softwares Estatísticos", cex.names = .7)
+
+#Vai usar estatística/importância
 
 pie3D(table(quest$met), col = c("red", "blue", "green"), main = "Vai utilizar métodos\nestatísticos?",
       labels = percent(as.vector(prop.table(table(quest$met)))), height = .07, start = 3*pi/4)
-legend(-.8, 1, legend = c("Não", "Não sabe","Sim"), fill = c("red", "blue", "green"), bty = "n")
+legend(-.8, 1, legend = c("Não sabe", "Não","Sim"), fill = c("red", "blue", "green"), bty = "n")
 
-barplot(table(quest$import), col = heat.colors(length(unique(quest$import))), main = "Importância da estatística\nno trabalho de PG")
+barplot(table(quest$import), col = rainbow(length(unique(quest$import))), main = "Importância da estatística\nno trabalho de PG")
+
+#Socio-economico
 
 pie3D(table(quest$trab), col = c("red", "blue"), main = "Trabalha?",
       labels = percent(as.vector(prop.table(table(quest$trab)))), height = .07, start = 3*pi/4)
@@ -171,35 +236,76 @@ pie3D(table(quest$sexo), col = c("red", "blue"), main = "Sexo",
       labels = percent(as.vector(prop.table(table(quest$sexo)))), height = .07, start = 3*pi/4)
 legend(-.8, 1, legend = c("Feminino", "Masculino"), fill = c("red", "blue"), bty = "n")
 
-barplot(table(quest$irm), col = rainbow(length(unique(quest$irm))), main = "Número de irmãos")
+plot(table(quest$irm), main = "Número de irmãos", t = "h", ylab = "Frequência", xlab = "Irmãos")
+lines(x = c(0:10) + .1, y = dpois(c(0:10), lambda = mean(quest$irm)) * sum(table(quest$irm)), t = "h", lty = 3, 
+      col = "red")
+legend("topright", lty = c(1, 3), col = c("black", "red"),
+       legend = c("Frequência", expression(paste("P(X = x), X ~ Pois(", lambda, ")"))))
 
 pie3D(table(quest$origem), col = c("red", "blue", "green"), main = "Origem",
       labels = percent(as.vector(prop.table(table(quest$origem)))), height = .07, start = 3*pi/4)
 legend(-.8, 1, legend = c("Curitiba & Região", "Interior PR", "Outro estado"), fill = c("red", "blue", "green"),
        bty = "n")
 
-barplot(table(quest$mora), col = rainbow(length(unique(quest$mora))), main = "Você mora")
+barplot(table(quest$mora), col = rainbow(length(unique(quest$mora))), main = "Você mora", cex.names = .8,
+        names.arg = c("Sozinho", "Com os pais", "Com parceiro(a)", "Com amigos", "Com familiares"), ylim = c(0, 120))
+text(x = as.vector(barplot(table(quest$mora), plot = FALSE)), y = as.vector(table(quest$mora)) + 5, 
+     labels = percent(as.vector(prop.table(table(quest$mora)))), cex = .8)
 
-pie3D(table(quest$transp), col = terrain.colors(length(unique(quest$transp))), main = "Meio de transporte principal",
+pie3D(table(quest$transp), col = rainbow(length(unique(quest$transp))), main = "Meio de transporte principal",
       labels = percent(as.vector(prop.table(table(quest$transp)))), height = .07, start = 3*pi/4)
-legend(-.9, 1, legend = sort(unique(quest$transp)), fill = terrain.colors(length(unique(quest$transp))), bty = "n")
+legend(-.9, 1, legend = sort(unique(quest$transp)), fill = rainbow(length(unique(quest$transp))), bty = "n",
+       cex = .8)
 
-pie3D(table(quest$hab), col = terrain.colors(length(unique(quest$hab))), main = "Possui habilitação? Qual?",
+pie3D(table(quest$hab), col = rainbow(length(unique(quest$hab))), main = "Possui habilitação? Qual?",
       labels = percent(as.vector(prop.table(table(quest$hab)))), height = .07, start = 3*pi/4)
-legend(-.9, 1, legend = sort(unique(quest$hab)), fill = terrain.colors(length(unique(quest$hab))), bty = "n")
+legend(-.9, 1, legend = sort(unique(quest$hab)), fill = rainbow(length(unique(quest$hab))), bty = "n",
+       cex = .8)
+
+#Altura, peso e IMC
 
 par(mfrow = c(1,2))
 
-boxplot(quest$height, col = "red", main = "Altura")
+boxplot(quest$height[which(quest$height > 0)], col = "red", main = "Altura")
 boxplot(quest$weight, col = "blue", main = "Peso")
 
 par(mfrow = c(1,1))
+
+h <- hist(quest$height[which(quest$height > 0)], main = "Histograma da altura", xlab = "Altura", col = "blue")
+xfit <- seq(min(quest$height[which(quest$height > 0)], na.rm = TRUE), max(quest$height, na.rm = TRUE), l = 40)
+yfit <- dnorm(xfit, mean(quest$height[which(quest$height > 0)], na.rm = TRUE),
+              sd(quest$height[which(quest$height > 0)], na.rm = TRUE))
+yfit <- yfit*dim(quest)[1]*diff(h$mids[1:2])
+lines(x = xfit, y = yfit)
+
+h <- hist(quest$weight, main = "Histograma do peso", xlab = "Peso", ylim = c(0, 120), col = "red")
+xfit <- seq(min(quest$weight, na.rm = TRUE), max(quest$weight, na.rm = TRUE), l = 40)
+yfit <- dnorm(xfit, mean(quest$weight[which(quest$weight > 0)], na.rm = TRUE),
+              sd(quest$weight[which(quest$weight > 0)], na.rm = TRUE))
+yfit <- yfit*dim(quest)[1]*diff(h$mids[1:2])
+lines(x = xfit, y = yfit)
+
+plot(quest$weight[which(quest$height > 0)] ~ quest$height[which(quest$height > 0)], xlab = "Altura", ylab = "Peso",
+     main = "Gráfico de dispersão altura vs peso")
+
+IMC <- quest$weight/((quest$height/100)^2)
+
+h <- hist(IMC, main = "Histograma do IMC", xlab = "IMC", col = "green")
+xfit <- seq(min(IMC, na.rm = TRUE), max(IMC, na.rm = TRUE), l = 40)
+yfit <- dnorm(xfit, mean(IMC, na.rm = TRUE),
+              sd(IMC, na.rm = TRUE))
+yfit <- yfit*dim(quest)[1]*diff(h$mids[1:2])
+lines(x = xfit, y = yfit)
+
+#Fim
 
 pie3D(table(quest$pet), col = c("red", "blue"), main = "Possui animal de estimação?",
       labels = percent(as.vector(prop.table(table(quest$pet)))), height = .07, start = 3*pi/4)
 legend(-.8, 1, legend = c("Não", "Sim"), fill = c("red", "blue"), bty = "n")
 
-barplot(table(instr), col = rainbow(length(unique(instr))), main = "Toca algum instrumento musical?")
+barplot(sort(c(table(instr)[which(table(instr) > 2)], sum(table(instr)[which(table(instr) <= 2)]))), col = rainbow(length(unique(instr))),
+        main = "Toca algum instrumento musical?",
+        names.arg = c("Bateria", "Violino", "Baixo", "Guitarra", "Piano", "Violão", "Outro", "Não"))
 
 barplot(table(social), col = topo.colors(length(unique(social))), main = "De quais redes sociais participa?")
 
