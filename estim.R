@@ -1,25 +1,21 @@
-pred <- function(x_p){
-  sapply(x_p, 
-         function(x__p){
-           if(x__p < 0) {
-             0
-           }
-           else{
-             n*(sum(x)/(x__p + sum(x)))^n*1/(x__p + sum(x))
-           }
-         }
-  )
+# Função preditiva
+
+pred <- function(x_p, sx, n){
+  den <- x_p + sx
+  (x_p >= 0)*((sx/den)^n * (n/den))
 }
 
-x <- rexp(100, rate = 1)
+curve(pred(x, 500, 20), xlim = c(-10, 500))
+
+# Amostra da f(x|theta)
 
 n <- 100
+x <- rexp(n, rate = 2)
+sx <- sum(x)
 
-integrate(pred, 0, Inf)
+integrate(function(x) pred(x, sx, n), 0, Inf)
 
-curve(pred, 0, 2)
-
-plot(density(pred(rexp(100, 1))))
+# Esperança x
 
 esp <- function(x_p){
   n*(sum(x)/(x_p + sum(x)))^n*1/(x_p + sum(x)) * x_p
@@ -27,14 +23,48 @@ esp <- function(x_p){
 
 integrate(esp, 0, Inf)
 
-avg2 <- function(x_p){
+# Esperança x^2
+
+esp2 <- function(x_p){
   n*(sum(x)/(x_p^2 + sum(x)))^n*1/(x_p^2 + sum(x)) * x_p^2
 }
 
-integrate(avg2, 0, Inf)$value-integrate(avg, 0, Inf)$value^2
+# Variância
 
-gam <- rgamma(1000, n, 1/sum(x))
+integrate(esp, 0, Inf)$value - integrate(esp, 0, Inf)$value^2
 
-qgamma(c(.05, .95), n, 1/sum(x))
+# Estimando moda e mediana da preditiva
 
-rexp(10, gam[1:10])
+posteriori <- rgamma(1000, shape = n, scale = 1/sx)
+yp <- rexp(1000, posteriori)
+
+quant <- quantile(yp)
+
+dens <- density(yp)
+
+moda <- dens$x[which(dens$y == max(dens$y))]
+
+x_axis <- seq(-1, 8, len = 1000)
+pred1 <- pred(x_axis, sx, n)
+plot(x_axis, pred1, col = "red", lty = 2, type = "l")
+lines(density(yp))
+
+density(yp)
+
+
+###
+
+mu <- 0
+vari <- 1
+
+post <- function(x, mu, vari, n, sx){
+  exp(-n*x-(log(x)-mu)^2/(2*vari))*x^(sx-1)
+}
+
+theta <- rlnorm(1000, mu, vari)
+
+pred_pois <- rpois(1000, theta)
+
+curve(dnorm(x, mean = mean(pred_pois), sd = sd(pred_pois)), from = 0, to = 12)
+
+lines(prop.table(table(pred_pois)), type = "h")
