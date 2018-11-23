@@ -1,0 +1,24 @@
+---
+title: "Markdown Cristian"
+output: pdf_document
+---
+
+Pra você colocar as fórmulas junto com o texto, você deixa tudo entre \$. (Pra você compilar o sinal de \$, você precisa colocar uma \\ antes, pois ele é um metacaractere: '\\\$', assim como a própria barra invertida.)
+
+Assim sendo, uma fórmula seria algo tipo
+
+\$f(x) = ax + b\$ $\rightarrow f(x) = ax + b$.
+
+Perceba que a quantidade de espaço que você coloca dentro de \$\$ não influencia em nada. Para adicionar espaços pequenos você pode colocar '\\;', e para colocar espaços grandes, '\\quad' ou '\\qquad'.
+
+Aí para você fazer as fórmulas grandes você coloca 2 \$ de cada lado.
+
+\$\$X \\sim N(\\mu, \\sigma\^2) \\rightarrow f(x | \\mu, \\sigma) = \\frac\{1\}\{\\sqrt\{2 \\pi \\sigma\^2\}\} e\^\{-\\frac\{(x - \\mu)\^2\}\{2\\sigma\^2\}\} \\qquad x \\in (-\\infty, +\\infty), \\mu \\in \\mathbb\{R\}, \\sigma > 0\$\$
+
+$$X \sim N(\mu, \sigma^2) \rightarrow f(x | \mu, \sigma) = \frac{1}{\sqrt{2 \pi \sigma^2}}e^{-\frac{(x - \mu)^2}{2\sigma^2}} \qquad x \in (-\infty, +\infty), \mu \in \mathbb{R}, \sigma > 0$$
+
+Aí se você precisar colocar texto pleno dentro de uma fórmula, como se pra definir o nome de uma covariável, você pode fazer assim:
+
+\$\$ \\hat y = \\beta\_0 + \\hat \\beta\_1 x + \\hat \\beta\_2 \\text\{Cristian\}\$\$
+
+$$\hat y = \hat \beta_0 + \hat \beta_1 x + \hat \beta_2 \text{Cristian}$$
